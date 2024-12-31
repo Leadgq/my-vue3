@@ -6,15 +6,28 @@
     <title>Document</title>
 </head>
 <body>
-    <script type="module">
-        import { reactive } from './reactivity.js';
-        let obj = {
-            name: '张三',
-            age: 18
-        };
-        let state = reactive(obj);
-        let state2 = reactive(state);
-        console.log(state === state2);
-    </script>
+<div id="app"></div>
+<script type="module">
+    import {reactive, effect} from './reactivity.js';
+
+    const app = document.querySelector('#app');
+    let obj = {
+        name: '张三',
+        age: 18
+    };
+    let state = reactive(obj);
+    effect(() => {
+        app.innerHTML = state.name + '今年' + state.age + '岁了';
+    });
+
+    effect(() => {
+        state.name
+    });
+
+
+    // setTimeout(() => {
+    //     state.age++;
+    // }, 2000);
+</script>
 </body>
 </html>
