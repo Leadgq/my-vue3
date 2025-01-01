@@ -12,6 +12,9 @@ var ReactiveEffect = class {
     this.fn = fn;
     this.scheduler = scheduler;
     this.active = true;
+    this.tracked_Id = 0;
+    this.deps = [];
+    this.depsLength = 0;
   }
   run() {
     if (!this.active) {
@@ -19,15 +22,29 @@ var ReactiveEffect = class {
     }
     let lastEffect = activeEffect;
     try {
-      this.active = false;
       activeEffect = this;
       return this.fn();
     } finally {
       activeEffect = lastEffect;
-      this.active = true;
     }
   }
+  //  todo
+  stop() {
+    this.active = false;
+  }
 };
+function trackEffect(effect2, dep) {
+  console.log(effect2, dep);
+  dep.set(effect2, effect2.tracked_Id);
+  effect2.deps[effect2.depsLength++] = dep;
+}
+function triggerEffects(dep) {
+  for (const effect2 of dep.keys()) {
+    if (effect2.scheduler) {
+      effect2.scheduler();
+    }
+  }
+}
 
 // packages/shared/src/index.ts
 function isObject(value) {
@@ -35,8 +52,38 @@ function isObject(value) {
 }
 
 // packages/reactivity/src/reactiveEffect.ts
+var targetMap = /* @__PURE__ */ new WeakMap();
+function createDep(clearUp, key) {
+  let dep = /* @__PURE__ */ new Map();
+  dep.clearUp = clearUp;
+  dep.name = key;
+  return dep;
+}
 function track(target, key) {
-  console.log("track", key, activeEffect);
+  if (activeEffect) {
+    let depMap = targetMap.get(target);
+    if (!depMap) {
+      targetMap.set(target, depMap = /* @__PURE__ */ new Map());
+    }
+    let dep = depMap.get(key);
+    if (!dep) {
+      depMap.set(
+        key,
+        dep = createDep(() => depMap.delete(key), key)
+      );
+    }
+    trackEffect(activeEffect, dep);
+  }
+}
+function trigger(target, key, newValue, oldValue) {
+  const depMap = targetMap.get(target);
+  if (!depMap) {
+    return;
+  }
+  const dep = depMap.get(key);
+  if (dep) {
+    triggerEffects(dep);
+  }
 }
 
 // packages/reactivity/src/baseHandler.ts
@@ -49,7 +96,12 @@ var mutableHandlers = {
     return Reflect.get(target, key, receiver);
   },
   set(target, key, value, receiver) {
-    return Reflect.set(target, key, value, receiver);
+    const oldValue = target[key];
+    const result = Reflect.set(target, key, value, receiver);
+    if (oldValue !== value) {
+      trigger(target, key, value, oldValue);
+    }
+    return result;
   }
 };
 
@@ -75,6 +127,8 @@ function reactive(target) {
 export {
   activeEffect,
   effect,
-  reactive
+  reactive,
+  trackEffect,
+  triggerEffects
 };
 //# sourceMappingURL=reactivity.js.map

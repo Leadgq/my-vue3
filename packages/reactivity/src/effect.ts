@@ -11,7 +11,10 @@ export function effect(fn: () => any, options?: any) {
 export let activeEffect: ReactiveEffect | undefined
 
 class ReactiveEffect {
-    private active = true
+    public active = true
+    tracked_Id = 0;
+    deps: any[] = [];
+    depsLength = 0;
 
     constructor(public fn: () => any, public scheduler) {
     }
@@ -24,12 +27,31 @@ class ReactiveEffect {
         // 保存上一个激活的effect、最后的值为undefined
         let lastEffect = activeEffect;
         try {
-            this.active = false
             activeEffect = this
             return this.fn()
         } finally {
             activeEffect = lastEffect
-            this.active = true
+        }
+    }
+
+    //  todo
+    stop() {
+        this.active = false
+    }
+}
+
+// 双向记忆
+export function trackEffect(effect: ReactiveEffect, dep: any) {
+    console.log(effect, dep)
+    dep.set(effect, effect.tracked_Id);
+    effect.deps[effect.depsLength++] = dep
+}
+
+// 触发effect
+export function triggerEffects(dep) {
+    for (const effect of dep.keys()) {
+        if (effect.scheduler) {
+            effect.scheduler();
         }
     }
 }
