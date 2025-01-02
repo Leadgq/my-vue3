@@ -7,6 +7,18 @@ function effect(fn, options) {
   return _effect;
 }
 var activeEffect;
+function cleanPreEffect(effect2) {
+  effect2.depsLength = 0;
+  effect2.tracked_Id++;
+}
+function cleanPostEffect(effect2) {
+  if (effect2.deps.length > effect2.depsLength) {
+    for (let i = effect2.depsLength; i < effect2.deps.length; i++) {
+      cleanDepEffect(effect2.deps[i], effect2);
+    }
+    effect2.deps.length = effect2.depsLength;
+  }
+}
 var ReactiveEffect = class {
   constructor(fn, scheduler) {
     this.fn = fn;
@@ -23,9 +35,11 @@ var ReactiveEffect = class {
     let lastEffect = activeEffect;
     try {
       activeEffect = this;
+      cleanPreEffect(this);
       return this.fn();
     } finally {
       activeEffect = lastEffect;
+      cleanPostEffect(this);
     }
   }
   //  todo
@@ -33,10 +47,25 @@ var ReactiveEffect = class {
     this.active = false;
   }
 };
+function cleanDepEffect(dep, effect2) {
+  dep.delete(effect2);
+  if (dep.size === 0) {
+    dep.clearUp();
+  }
+}
 function trackEffect(effect2, dep) {
-  console.log(effect2, dep);
-  dep.set(effect2, effect2.tracked_Id);
-  effect2.deps[effect2.depsLength++] = dep;
+  if (dep.get(effect2) !== effect2.tracked_Id) {
+    dep.set(effect2, effect2.tracked_Id);
+    const oldDep = effect2.deps[effect2.depsLength];
+    if (oldDep !== dep) {
+      if (oldDep) {
+        cleanDepEffect(oldDep, effect2);
+      }
+      effect2.deps[effect2.depsLength++] = dep;
+    } else {
+      effect2.depsLength++;
+    }
+  }
 }
 function triggerEffects(dep) {
   for (const effect2 of dep.keys()) {

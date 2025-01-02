@@ -13,17 +13,20 @@
     const app = document.querySelector('#app');
     let obj = {
         name: '张三',
-        age: 18
+        age: 18,
+        flag: true
     };
     let state = reactive(obj);
     effect(() => {
-        app.innerHTML = state.name + '今年' + state.age + '岁了';
+        // app.innerHTML = state.name + '今年' + state.age + '岁了';
+        app.innerHTML = state.flag ? state.name : state.age
+        
     });
 
 
 
     setTimeout(() => {
-        state.age++;
+        state.flag = false
     }, 1000);
 </script>
 </body>
